@@ -29,7 +29,20 @@
         {:status :error}
         {:status :ok :data (dec size)})))))
 
+(defn download-map [id size]
+  (loop [prev-x nil x 0 y 1]
+    (do (println "looping with" x y)
+     (let [url (thumbnail-url id size x y)
+          filename (gen-filename id x y)
+          copy (<!! (copy-uri-to-file url filename))]
+      (if (= :ok (:status copy))
+        (recur x (inc x) y)
+        (if (and (= x 0) (> y 0))
+          [(dec prev-x) (dec y)]
+          (recur x 0 (inc y))))))))
+
 (defn -main
   [& args]
-  (let [id (-> args first url :path (split #"\/") (nth 2) Integer.)]
-    (println (<!! (best-size id 3)))))
+  (let [id (-> args first url :path (split #"\/") (nth 2) Integer.)
+        size (:data (<!! (best-size id 3)))]
+    (println "final" (download-map id size))))
