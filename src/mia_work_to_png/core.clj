@@ -3,6 +3,10 @@
             [clojure.core.async :as asyc :refer [go <! <!!]]
             [clojure.string :refer [split]]
             [cemerick.url :refer [url]])
+  (:import [javax.imageio ImageIO]
+           [java.io File]
+           [java.awt.image BufferedImage]
+           [java.awt Color Graphics2D])
   (:gen-class))
 
 (defn copy-uri-to-file [uri file]
@@ -29,12 +33,27 @@
         {:status :error}
         {:status :ok :data (dec size)})))))
 
+(defn horizontal-merge [left right]
+  (let [w (+ (.getWidth left) (.getWidth right))
+        h (.getHeight left)
+        img (BufferedImage. w h (BufferedImage/TYPE_INT_ARGB))
+        g2 (.createGraphics img)
+        color (.getColor g2)]
+    (doto g2 (.setPaint Color/WHITE)
+             (.fillRect 0 0 w h)
+             (.setColor color)
+             (.drawImage left nil 0 0)
+             (.drawImage right nil (.getWidth left) 0)
+             (.dispose))
+    img))
+; http://stackoverflow.com/questions/20826216/copy-two-buffered-image-into-one-image-side-by-side
+
 (defn download-map [id size]
-  (loop [prev-x nil x 0 y 1]
+  (loop [prev-x nil x 1 y 0]
     (do (println "looping with" x y)
      (let [url (thumbnail-url id size x y)
-          filename (gen-filename id x y)
-          copy (<!! (copy-uri-to-file url filename))]
+           filename (gen-filename id x y)
+           copy (<!! (copy-uri-to-file url filename))]
       (if (= :ok (:status copy))
         (recur x (inc x) y)
         (if (and (= x 0) (> y 0))
@@ -44,5 +63,9 @@
 (defn -main
   [& args]
   (let [id (-> args first url :path (split #"\/") (nth 2) Integer.)
-        size (:data (<!! (best-size id 3)))]
-    (println "final" (download-map id size))))
+        size (:data (<!! (best-size id 3)))
+        left (ImageIO/read (File. (gen-filename id 0 0)))
+        right (ImageIO/read (File. (gen-filename id 1 0)))]
+    #_(download-map id size)
+    (ImageIO/write (horizontal-merge left right) "png" (File. "/tmp/lalal.png"))
+    #_(println "final" (download-map id size))))
