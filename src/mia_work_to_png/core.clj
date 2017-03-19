@@ -36,8 +36,8 @@
 (defn merge-images
   ([one two] (merge-images one two nil))
   ([one two vertically?]
-    (let [w (+ (.getWidth one) (if vertically? (.getWidth two) 0))
-          h (+ (.getHeight one) (if vertically? 0 (.getHeight two)))
+    (let [w (+ (.getWidth one) (if vertically? 0 (.getWidth two)))
+          h (+ (.getHeight one) (if vertically? (.getHeight two) 0))
           img (BufferedImage. w h (BufferedImage/TYPE_INT_ARGB))
           g2 (.createGraphics img)
           color (.getColor g2)]
@@ -46,10 +46,11 @@
                (.setColor color)
                (.drawImage one nil 0 0)
                (.drawImage two nil
-                           (if (not vertically?) (.getWidth one) 0)
-                           (if vertically? (.getHeight one)))
+                           (if vertically? 0 (.getWidth one))
+                           (if vertically? (.getHeight one) 0))
                (.dispose))
       img)))
+
 (defn horizontal-merge [left right]
   (let [w (+ (.getWidth left) (.getWidth right))
         h (.getHeight left)
@@ -67,22 +68,28 @@
 
 (defn download-map [id size]
   (loop [prev-x nil x 1 y 0]
-    (do (println "looping with" x y)
+    (do
      (let [url (thumbnail-url id size x y)
            filename (gen-filename id x y)
            copy (<!! (copy-uri-to-file url filename))]
       (if (= :ok (:status copy))
-        (recur x (inc x) y)
+        (do
+          (println "Just downloaded file" filename)
+          (recur x (inc x) y))
         (if (and (= x 0) (> y 0))
           [(dec prev-x) (dec y)]
           (recur x 0 (inc y))))))))
 
-(defn -main
-  [& args]
+(defn -main [& args]
   (let [id (-> args first url :path (split #"\/") (nth 2) Integer.)
         size (:data (<!! (best-size id 3)))
-        left (ImageIO/read (File. (gen-filename id 0 0)))
-        right (ImageIO/read (File. (gen-filename id 1 0)))]
-    #_(download-map id size)
-    (ImageIO/write (merge-images left right) "png" (File. "/tmp/lalal.png"))
-    #_(println "final" (download-map id size))))
+        [max-x max-y] (download-map id size)
+        _ (println "About to merge all the images")
+        thumbnails (map (fn [y] (map (fn [x]
+                                       (ImageIO/read (File. (gen-filename id x y))))
+                                (range (inc max-x))))
+                        (range (inc max-y)))
+        image (reduce (fn [whole part] (merge-images whole part :vertically))
+                      (map (partial reduce merge-images) thumbnails))]
+    (ImageIO/write image "png" (File. (str "/tmp/" id ".png")))
+    (println (str "Final image saved to /tmp/" id ".png"))))
