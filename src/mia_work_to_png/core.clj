@@ -85,11 +85,17 @@
         size (:data (<!! (best-size id 3)))
         [max-x max-y] (download-map id size)
         _ (println "About to merge all the images")
-        thumbnails (map (fn [y] (map (fn [x]
-                                       (ImageIO/read (File. (gen-filename id x y))))
+        filenames (map (fn [y] (map (fn [x]
+                                       (gen-filename id x y))
                                 (range (inc max-x))))
                         (range (inc max-y)))
+        thumbnails (map (fn [row] (map #(ImageIO/read (File. %)) row)) filenames)
+        ; thumbnails (map (fn [y] (map (fn [x]
+        ;                                (ImageIO/read (File. (gen-filename id x y))))
+        ;                         (range (inc max-x))))
+        ;                 (range (inc max-y)))
         image (reduce (fn [whole part] (merge-images whole part :vertically))
                       (map (partial reduce merge-images) thumbnails))]
     (ImageIO/write image "png" (File. (str "/tmp/" id ".png")))
+    (doseq [f (apply concat filenames)] (io/delete-file f))
     (println (str "Final image saved to /tmp/" id ".png"))))
