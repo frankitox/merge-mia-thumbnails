@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # mia-work-to-png
 
 FIXME: description
@@ -34,3 +35,6 @@ Copyright © 2017 FIXME
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
+=======
+# merge-mia-thumbnails
+>>>>>>> 67931609a4d2d0dad5a49e297a08209f73564164
