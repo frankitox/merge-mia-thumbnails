@@ -33,6 +33,23 @@
         {:status :error}
         {:status :ok :data (dec size)})))))
 
+(defn merge-images
+  ([one two] (merge-images one two nil))
+  ([one two vertically?]
+    (let [w (+ (.getWidth one) (if vertically? (.getWidth two) 0))
+          h (+ (.getHeight one) (if vertically? 0 (.getHeight two)))
+          img (BufferedImage. w h (BufferedImage/TYPE_INT_ARGB))
+          g2 (.createGraphics img)
+          color (.getColor g2)]
+      (doto g2 (.setPaint Color/WHITE)
+               (.fillRect 0 0 w h)
+               (.setColor color)
+               (.drawImage one nil 0 0)
+               (.drawImage two nil
+                           (if (not vertically?) (.getWidth one) 0)
+                           (if vertically? (.getHeight one)))
+               (.dispose))
+      img)))
 (defn horizontal-merge [left right]
   (let [w (+ (.getWidth left) (.getWidth right))
         h (.getHeight left)
@@ -67,5 +84,5 @@
         left (ImageIO/read (File. (gen-filename id 0 0)))
         right (ImageIO/read (File. (gen-filename id 1 0)))]
     #_(download-map id size)
-    (ImageIO/write (horizontal-merge left right) "png" (File. "/tmp/lalal.png"))
+    (ImageIO/write (merge-images left right) "png" (File. "/tmp/lalal.png"))
     #_(println "final" (download-map id size))))
